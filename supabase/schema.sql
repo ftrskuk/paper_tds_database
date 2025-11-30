@@ -8,19 +8,6 @@ create table public.paper_specs (
   whiteness float, -- CIE
   smoothness float, -- Bekk
   cobb_value float,
-  tensile_strength_md float,
-  tensile_strength_cd float,
-  tearing_strength_md float,
-  tearing_strength_cd float,
-  extra_specs jsonb default '{}'::jsonb,
-  tds_file_url text,
-  status text default 'draft' check (status in ('draft', 'approved')),
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-
--- Enable RLS
-alter table public.paper_specs enable row level security;
-
 -- Create policy for authenticated users to view approved specs
 create policy "Authenticated users can view approved specs"
   on public.paper_specs for select

@@ -2,122 +2,154 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Upload, FileText, Loader2 } from "lucide-react"
-import { processPdfAction } from "@/app/actions/process-pdf"
-import { useState } from "react"
+import { FileText, Plus, Copy, Loader2 } from "lucide-react"
+import { useState, useEffect } from "react"
+import { createClient } from "@/lib/supabase/client"
+import { TdsFormDialog } from "@/components/tds-form-dialog"
+import { type PaperSpec } from "@/app/actions/save-specs"
+
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table"
 
 export default function AdminPage() {
-    const [isUploading, setIsUploading] = useState(false)
-    const [uploadResult, setUploadResult] = useState<any>(null)
+    const [specs, setSpecs] = useState<PaperSpec[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+    const [selectedSpec, setSelectedSpec] = useState<PaperSpec | undefined>(undefined)
+    const [isDialogOpen, setIsDialogOpen] = useState(false)
 
-    async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-        const file = e.target.files?.[0]
-        if (!file) return
+    const fetchSpecs = async () => {
+        setIsLoading(true)
+        const supabase = createClient()
+        const { data, error } = await supabase
+            .from('paper_specs')
+            .select('*')
+            .order('created_at', { ascending: false })
 
-        setIsUploading(true)
-        setUploadResult(null)
-
-        const formData = new FormData()
-        formData.append('file', file)
-
-        try {
-            const result = await processPdfAction(formData)
-            setUploadResult(result)
-            if (result.success) {
-                alert(`성공적으로 ${result.data.length}개의 스펙을 추출했습니다!`)
-                console.log(result.data)
-            } else {
-                alert(`오류 발생: ${result.error}`)
-            }
-        } catch (error) {
-            alert('업로드 중 오류가 발생했습니다.')
-            console.error(error)
-        } finally {
-            setIsUploading(false)
+        if (data) {
+            setSpecs(data)
         }
+        setIsLoading(false)
+    }
+
+    useEffect(() => {
+        fetchSpecs()
+    }, [])
+
+    const handleCopy = (spec: PaperSpec) => {
+        // Create a copy without ID and created_at
+        const { ...copyData } = spec
+        // @ts-ignore - ID is auto-generated
+        delete copyData.id
+        // @ts-ignore - created_at is auto-generated
+        delete copyData.created_at
+
+        setSelectedSpec(copyData)
+        setIsDialogOpen(true)
+    }
+
+    const handleAddNew = () => {
+        setSelectedSpec(undefined)
+        setIsDialogOpen(true)
+    }
+
+    const handleSuccess = () => {
+        fetchSpecs()
+        setIsDialogOpen(false)
     }
 
     return (
-        <div className="flex flex-col gap-6 h-full">
+        <div className="flex flex-col gap-6 h-full pb-20">
             <div className="flex items-center justify-between">
                 <h1 className="text-3xl font-bold tracking-tight">데이터 관리</h1>
+                <Button onClick={handleAddNew}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    TDS 추가
+                </Button>
             </div>
 
-            <Tabs defaultValue="upload" className="w-full">
-                <TabsList>
-                    <TabsTrigger value="upload">PDF 업로드</TabsTrigger>
-                    <TabsTrigger value="drafts">검토 대기 (3)</TabsTrigger>
-                    <TabsTrigger value="approved">승인됨</TabsTrigger>
-                </TabsList>
+            <TdsFormDialog
+                open={isDialogOpen}
+                onOpenChange={setIsDialogOpen}
+                initialData={selectedSpec}
+                onSuccess={handleSuccess}
+            />
 
-                <TabsContent value="upload" className="mt-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>새로운 TDS 등록</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-12 hover:bg-muted/50 transition-colors relative">
-                                <input
-                                    type="file"
-                                    accept=".pdf"
-                                    onChange={handleFileUpload}
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                    disabled={isUploading}
-                                />
-                                {isUploading ? (
-                                    <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
+            <Card>
+                <CardHeader>
+                    <CardTitle>등록된 TDS 목록 ({specs.length})</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {isLoading ? (
+                        <div className="flex justify-center p-8">
+                            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                        </div>
+                    ) : (
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>제조사</TableHead>
+                                    <TableHead>제품명</TableHead>
+                                    <TableHead>평량 (g/m²)</TableHead>
+                                    <TableHead>두께 (µm)</TableHead>
+                                    <TableHead>백색도</TableHead>
+                                    <TableHead>원본 파일</TableHead>
+                                    <TableHead className="text-right">작업</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {specs.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                            등록된 데이터가 없습니다.
+                                        </TableCell>
+                                    </TableRow>
                                 ) : (
-                                    <Upload className="h-12 w-12 text-muted-foreground mb-4" />
+                                    specs.map((spec: any) => (
+                                        <TableRow key={spec.id}>
+                                            <TableCell>{spec.manufacturer}</TableCell>
+                                            <TableCell className="font-medium">{spec.product_name}</TableCell>
+                                            <TableCell>{spec.basis_weight}</TableCell>
+                                            <TableCell>{spec.thickness}</TableCell>
+                                            <TableCell>{spec.whiteness}</TableCell>
+                                            <TableCell>
+                                                {spec.tds_file_url ? (
+                                                    <a
+                                                        href={spec.tds_file_url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="flex items-center text-blue-600 hover:underline"
+                                                    >
+                                                        <FileText className="mr-1 h-4 w-4" />
+                                                        PDF
+                                                    </a>
+                                                ) : (
+                                                    <span className="text-muted-foreground">-</span>
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleCopy(spec)}
+                                                    title="복사하여 새 항목 만들기"
+                                                >
+                                                    <Copy className="h-4 w-4" />
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
                                 )}
-                                <h3 className="text-lg font-semibold mb-2">
-                                    {isUploading ? "AI가 분석 중입니다..." : "PDF 파일을 이곳에 드래그하세요"}
-                                </h3>
-                                <p className="text-sm text-muted-foreground mb-4">
-                                    {isUploading ? "잠시만 기다려주세요" : "또는 클릭하여 파일 선택"}
-                                </p>
-                                {!isUploading && <Button>파일 선택</Button>}
-                            </div>
-
-                            {uploadResult && uploadResult.success && (
-                                <div className="mt-6">
-                                    <h4 className="font-semibold mb-2">추출 결과 미리보기:</h4>
-                                    <pre className="bg-muted p-4 rounded-md overflow-auto max-h-60 text-xs">
-                                        {JSON.stringify(uploadResult.data, null, 2)}
-                                    </pre>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                <TabsContent value="drafts" className="mt-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>검토 대기 목록</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-4">
-                                {[1, 2, 3].map((i) => (
-                                    <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
-                                        <div className="flex items-center gap-4">
-                                            <FileText className="h-8 w-8 text-blue-500" />
-                                            <div>
-                                                <p className="font-medium">Paper_Spec_2024_{i}.pdf</p>
-                                                <p className="text-sm text-muted-foreground">2024-11-30 업로드됨</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <Button variant="outline" size="sm">검토</Button>
-                                            <Button size="sm">승인</Button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-            </Tabs>
+                            </TableBody>
+                        </Table>
+                    )}
+                </CardContent>
+            </Card>
         </div>
     )
 }
