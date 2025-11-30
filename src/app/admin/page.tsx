@@ -7,7 +7,7 @@ import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { TdsFormDialog } from "@/components/tds-form-dialog"
 import { type PaperSpec } from "@/app/actions/save-specs"
-
+import { logout } from "@/app/login/actions"
 import {
     Table,
     TableBody,
@@ -67,10 +67,17 @@ export default function AdminPage() {
         <div className="flex flex-col gap-6 h-full pb-20">
             <div className="flex items-center justify-between">
                 <h1 className="text-3xl font-bold tracking-tight">데이터 관리</h1>
-                <Button onClick={handleAddNew}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    TDS 추가
-                </Button>
+                <div className="flex gap-2">
+                    <form action={logout}>
+                        <Button variant="outline" type="submit">
+                            로그아웃
+                        </Button>
+                    </form>
+                    <Button onClick={handleAddNew}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        TDS 추가
+                    </Button>
+                </div>
             </div>
 
             <TdsFormDialog

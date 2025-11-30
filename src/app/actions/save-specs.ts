@@ -21,6 +21,11 @@ export type PaperSpec = {
 export async function saveSpecsAction(specs: PaperSpec[]) {
     const supabase = await createClient()
 
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+        return { success: false, error: '로그인이 필요합니다.' }
+    }
+
     try {
         const { data, error } = await supabase
             .from('paper_specs')
