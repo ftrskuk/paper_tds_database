@@ -1,5 +1,7 @@
 "use client"
 
+import { useEffect, useState } from "react"
+import { createClient } from "@/lib/supabase/client"
 import {
     Table,
     TableBody,
@@ -10,31 +12,38 @@ import {
 } from "@/components/ui/table"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-
-// Mock data for now
-const papers = [
-    {
-        id: "1",
-        manufacturer: "한솔제지",
-        product_name: "Hi-Q 밀레니엄 아트",
-        basis_weight: 100,
-        thickness: 95,
-        whiteness: 120,
-        smoothness: 400,
-    },
-    {
-        id: "2",
-        manufacturer: "무림페이퍼",
-        product_name: "네오스타 아트",
-        basis_weight: 100,
-        thickness: 92,
-        whiteness: 118,
-        smoothness: 380,
-    },
-]
+import { Loader2 } from "lucide-react"
 
 export function ResultsTable() {
+    const [papers, setPapers] = useState<any[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+
+    useEffect(() => {
+        const fetchPapers = async () => {
+            setIsLoading(true)
+            const supabase = createClient()
+            const { data, error } = await supabase
+                .from('paper_specs')
+                .select('*')
+                .order('created_at', { ascending: false })
+
+            if (data) {
+                setPapers(data)
+            }
+            setIsLoading(false)
+        }
+
+        fetchPapers()
+    }, [])
+
+    if (isLoading) {
+        return (
+            <div className="flex justify-center p-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        )
+    }
+
     return (
         <div className="rounded-md border">
             <Table>
@@ -53,22 +62,30 @@ export function ResultsTable() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {papers.map((paper) => (
-                        <TableRow key={paper.id}>
-                            <TableCell>
-                                <Checkbox />
-                            </TableCell>
-                            <TableCell>{paper.manufacturer}</TableCell>
-                            <TableCell className="font-medium">{paper.product_name}</TableCell>
-                            <TableCell>{paper.basis_weight}</TableCell>
-                            <TableCell>{paper.thickness}</TableCell>
-                            <TableCell>{paper.whiteness}</TableCell>
-                            <TableCell>{paper.smoothness}</TableCell>
-                            <TableCell className="text-right">
-                                <Button variant="ghost" size="sm">상세보기</Button>
+                    {papers.length === 0 ? (
+                        <TableRow>
+                            <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                                등록된 데이터가 없습니다.
                             </TableCell>
                         </TableRow>
-                    ))}
+                    ) : (
+                        papers.map((paper) => (
+                            <TableRow key={paper.id}>
+                                <TableCell>
+                                    <Checkbox />
+                                </TableCell>
+                                <TableCell>{paper.manufacturer}</TableCell>
+                                <TableCell className="font-medium">{paper.product_name}</TableCell>
+                                <TableCell>{paper.basis_weight}</TableCell>
+                                <TableCell>{paper.thickness}</TableCell>
+                                <TableCell>{paper.whiteness}</TableCell>
+                                <TableCell>{paper.smoothness}</TableCell>
+                                <TableCell className="text-right">
+                                    <Button variant="ghost" size="sm">상세보기</Button>
+                                </TableCell>
+                            </TableRow>
+                        ))
+                    )}
                 </TableBody>
             </Table>
         </div>
