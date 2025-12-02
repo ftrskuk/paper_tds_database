@@ -1,7 +1,5 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { createClient } from "@/lib/supabase/client"
 import {
     Table,
     TableBody,
@@ -12,38 +10,23 @@ import {
 } from "@/components/ui/table"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
-import { Loader2 } from "lucide-react"
 
-export function ResultsTable() {
-    const [papers, setPapers] = useState<any[]>([])
-    const [isLoading, setIsLoading] = useState(true)
+interface PaperSpec {
+    id: string
+    manufacturer: string
+    product_name: string
+    basis_weight: number
+    thickness: number
+    whiteness: number
+    smoothness: number
+    [key: string]: any
+}
 
-    useEffect(() => {
-        const fetchPapers = async () => {
-            setIsLoading(true)
-            const supabase = createClient()
-            const { data, error } = await supabase
-                .from('paper_specs')
-                .select('*')
-                .order('created_at', { ascending: false })
+interface ResultsTableProps {
+    papers: PaperSpec[]
+}
 
-            if (data) {
-                setPapers(data)
-            }
-            setIsLoading(false)
-        }
-
-        fetchPapers()
-    }, [])
-
-    if (isLoading) {
-        return (
-            <div className="flex justify-center p-8">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-        )
-    }
-
+export function ResultsTable({ papers }: ResultsTableProps) {
     return (
         <div className="rounded-md border">
             <Table>
